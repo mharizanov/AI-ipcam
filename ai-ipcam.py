@@ -107,7 +107,7 @@ while True:
     namestr=''
     draw = ImageDraw.Draw(curr_img)
     for det_object in result:
-        #if any(det_object['label'] in s for s in watch_list):
+        if any(det_object['label'] in s for s in watch_list):
             draw.rectangle([det_object['topleft']['x'], det_object['topleft']['y'],det_object['bottomright']['x'], det_object['bottomright']['y']], outline=(255, 255, 0))
             draw.text([det_object['topleft']['x'], det_object['topleft']['y'] - 13], det_object['label']+' - ' + str(  "{0:.0f}%".format(det_object['confidence'] * 100) ) , fill=(255, 255, 0))
             saveflag=True
