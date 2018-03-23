@@ -11,13 +11,13 @@ import paho.mqtt.client as mqtt
 import argparse
 #In case Raspberry Pi camera is used instead of RTSP stream
 import picamera
-usepicamera = True
+usepicamera = False
 
 #RTSP captured frame frame_filename; preferably on RAM drive
-#On Mac
 #diskutil erasevolume HFS+ 'RAM Disk' `hdiutil attach -nomount ram://20480`
 #frame_filename = '/Volumes/RAM Disk/frame'+str(random.randint(1,99999))+'.jpeg'
-#On Raspberry Pi
+
+#Raspberry Pi
 #sudo mkdir /tmp/ramdisk; sudo chmod 777 /tmp/ramdisk
 #sudo mount -t tmpfs -o size=16M tmpfs /tmp/ramdisk/
 
@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
   "--stream",  # name on the parser - drop the `--` for positional/required parameters
   type=str,
-  default= 'rtsp://192.168.1.153:554/onvif1', # default if nothing is provided
+  default= 'rtsp://192.168.1.192:554/onvif1', # default if nothing is provided
 )
 
 parser.add_argument(
@@ -74,10 +74,10 @@ print("Show image: %r" % showimageflag)
 
 if usepicamera:
     camera = picamera.PiCamera()
-    camera.resolution = (1024, 768)
+    camera.resolution = (640, 480)
 else:
-    #start a ffmpeg process that captures one frame every 5 seconds
-    p = Popen(['ffmpeg', '-loglevel', 'panic', '-rtsp_transport', 'udp', '-i', rtsp_stream, '-f' ,'image2' ,'-pix_fmt', 'yuvj420p', '-r', '1/5' ,'-updatefirst', '1', frame_filename])
+    #start a ffmpeg process that captures one frame every 2 seconds
+    p = Popen(['ffmpeg', '-loglevel', 'panic', '-rtsp_transport', 'udp', '-i', rtsp_stream, '-f' ,'image2' ,'-s', '640x480', '-pix_fmt', 'yuvj420p', '-r', '1/2' ,'-updatefirst', '1', frame_filename])
 
 if broker_address!='':
     client = mqtt.Client("cameraclient_"+str(random.randint(1,99999999))) #create new instance
@@ -92,6 +92,7 @@ while True:
             camera.capture( frame_filename )
         curr_img = Image.open( frame_filename )
         curr_img_cv2 = cv2.cvtColor(np.array(curr_img), cv2.COLOR_RGB2BGR) #is the frame good and can be opened?
+        curr_img_cv2 = cv2.resize(curr_img_cv2, (640, 480)) 
         os.remove(frame_filename) #delete frame once it is processed, so we don't reprocess the same frame over
     except: # ..frame not ready, just snooze for a bit
         time.sleep(1)
@@ -107,7 +108,7 @@ while True:
     namestr=''
     draw = ImageDraw.Draw(curr_img)
     for det_object in result:
-        if any(det_object['label'] in s for s in watch_list):
+        #if any(det_object['label'] in s for s in watch_list):
             draw.rectangle([det_object['topleft']['x'], det_object['topleft']['y'],det_object['bottomright']['x'], det_object['bottomright']['y']], outline=(255, 255, 0))
             draw.text([det_object['topleft']['x'], det_object['topleft']['y'] - 13], det_object['label']+' - ' + str(  "{0:.0f}%".format(det_object['confidence'] * 100) ) , fill=(255, 255, 0))
             saveflag=True
@@ -117,6 +118,7 @@ while True:
         saveflag=False
     if showimageflag!='no':
         curr_img_cv2=cv2.cvtColor(np.array(curr_img), cv2.COLOR_RGB2BGR)
+        curr_img_cv2 = cv2.resize(curr_img_cv2, (640, 480)) 
         cv2.imshow("Security Feed", curr_img_cv2)
         if cv2.waitKey(50) & 0xFF == ord('q'): # wait for image render
             break
